@@ -13,11 +13,10 @@ export const usersService = {
 
     const user = await usersRepository.update(userId, data);
 
-    // Flag the chosen avatar as referenced so the orphan-cleanup job won't
-    // reap it. (A non-null URL only; clearing the avatar leaves the old file
-    // to be cleaned up as an orphan.)
+    // Flag the chosen avatar (storage path) as referenced so the orphan-cleanup
+    // job won't reap it. Clearing the avatar leaves the old file to be reaped.
     if (avatarUrl) {
-      await uploadsRepository.markReferencedByUrls([avatarUrl]);
+      await uploadsRepository.markReferencedByPaths([avatarUrl]);
     }
 
     return user;

@@ -2,6 +2,7 @@ import { Prisma } from '@prisma/client';
 import { blogsRepository, type BlogWithRelations } from './blogs.repository.js';
 import { uploadsRepository } from '../uploads/uploads.repository.js';
 import { parsePagination, buildMeta } from '../../utils/pagination.js';
+import { normalizeTag } from '../../utils/tag.js';
 import { AppError } from '../../utils/AppError.js';
 import type { AuthUser } from '../../types/index.js';
 import type { ListBlogsQuery, CreateBlogInput, UpdateBlogInput } from './blogs.validation.js';
@@ -14,19 +15,20 @@ interface ProseMirrorNode {
 }
 
 // Walk a ProseMirror/Tiptap doc and collect every image src plus the cover.
-export function collectImageUrls(content: unknown, coverImageUrl?: string | null): string[] {
-  const urls = new Set<string>();
-  if (coverImageUrl) urls.add(coverImageUrl);
+// With the private bucket these values are storage PATHS, not URLs.
+export function collectImagePaths(content: unknown, coverImagePath?: string | null): string[] {
+  const paths = new Set<string>();
+  if (coverImagePath) paths.add(coverImagePath);
 
   const visit = (node: ProseMirrorNode | null | undefined): void => {
     if (!node || typeof node !== 'object') return;
     if (node.type === 'image' && node.attrs && typeof node.attrs.src === 'string') {
-      urls.add(node.attrs.src);
+      paths.add(node.attrs.src);
     }
     if (Array.isArray(node.content)) node.content.forEach(visit);
   };
   visit(content as ProseMirrorNode);
-  return [...urls];
+  return [...paths];
 }
 
 // Shape a blog row for the API, folding in like_count / is_liked_by_me.
@@ -54,19 +56,36 @@ const SORT_MAP: Record<string, Prisma.BlogOrderByWithRelationInput> = {
   most_liked: { likes: { _count: 'desc' } },
 };
 
+// Build the Prisma `where` for a blog listing, enforcing visibility rules.
+// SECURITY: only `author='me'` may see drafts, and only the caller's own.
+// Public browsing is pinned to published regardless of the `status` param, so
+// other users' drafts can never leak.
+export function buildListWhere(
+  { search, tag, status, author }: Pick<ListBlogsQuery, 'search' | 'tag' | 'status' | 'author'>,
+  currentUser?: AuthUser,
+): Prisma.BlogWhereInput {
+  const where: Prisma.BlogWhereInput = {};
+  if (search) where.title = { contains: search, mode: 'insensitive' };
+  if (tag) where.tags = { some: { tag: { name: normalizeTag(tag) } } };
+
+  if (author === 'me') {
+    if (!currentUser) throw AppError.unauthorized();
+    where.authorId = currentUser.id;
+    if (status) where.status = status;
+  } else {
+    where.status = 'published';
+  }
+  return where;
+}
+
 export const blogsService = {
   async list(
-    { search, tag, status, sort = 'newest', page, limit }: ListBlogsQuery,
+    { search, tag, status, author, sort = 'newest', page, limit }: ListBlogsQuery,
     currentUser?: AuthUser,
   ) {
     const { skip, take, page: p, limit: l } = parsePagination({ page, limit });
 
-    const where: Prisma.BlogWhereInput = {};
-    if (search) where.title = { contains: search, mode: 'insensitive' };
-    if (tag) where.tags = { some: { tag: { name: tag } } };
-    // General users only ever browse published blogs.
-    where.status = status ?? 'published';
-
+    const where = buildListWhere({ search, tag, status, author }, currentUser);
     const orderBy = SORT_MAP[sort] ?? SORT_MAP.newest!;
 
     const { rows, total } = await blogsRepository.list({ where, orderBy, skip, take });
@@ -117,7 +136,7 @@ export const blogsService = {
 
     // Flag any uploaded images referenced by this blog so the cleanup job
     // won't reap them.
-    await uploadsRepository.markReferencedByUrls(collectImageUrls(content, coverImageUrl));
+    await uploadsRepository.markReferencedByPaths(collectImagePaths(content, coverImageUrl));
 
     return present(blog, new Set());
   },
@@ -146,7 +165,7 @@ export const blogsService = {
     const content = patch.content ?? existing.content;
     const cover =
       patch.coverImageUrl !== undefined ? patch.coverImageUrl : existing.coverImageUrl;
-    await uploadsRepository.markReferencedByUrls(collectImageUrls(content, cover));
+    await uploadsRepository.markReferencedByPaths(collectImagePaths(content, cover));
 
     const likedSet = await blogsRepository.likedBlogIds(currentUser?.id, [blog.id]);
     return present(blog, likedSet);

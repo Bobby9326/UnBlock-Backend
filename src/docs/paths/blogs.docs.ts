@@ -13,7 +13,12 @@ export function registerBlogPaths(registry: OpenAPIRegistry, _bearer: unknown): 
     method: 'get',
     path: '/blogs',
     tags: ['Blogs'],
-    summary: 'List published blogs (search / sort / paginate)',
+    summary: 'List blogs (search / sort / paginate)',
+    description:
+      'Public browsing returns only published blogs. Pass `?author=me` to list ' +
+      'your own blogs including drafts (combine with `?status=draft|published` ' +
+      'for "My Posts" tabs). `status` is ignored for public browsing — other ' +
+      "users' drafts are never exposed.",
     security: [{ bearerAuth: [] }],
     request: { query: listBlogsSchema.query },
     responses: {

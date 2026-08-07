@@ -224,7 +224,7 @@ All routes are prefixed with `/api`. Responses use a consistent envelope:
 
 | Method | Path         | Access      | Notes                                              |
 | ------ | ------------ | ----------- | -------------------------------------------------- |
-| GET    | `/blogs`     | Active user | `?search=&tag=&sort=newest\|oldest\|most_liked\|title&page=&limit=` — includes `likeCount` + `isLikedByMe` |
+| GET    | `/blogs`     | Active user | `?search=&tag=&sort=newest\|oldest\|most_liked\|title&page=&limit=` — includes `likeCount` + `isLikedByMe`. `?author=me` lists your own blogs incl. **drafts** (add `?status=draft\|published` for "My Posts" tabs). Public browsing is always published-only. |
 | GET    | `/blogs/:id` | Active user | Detail                                             |
 | POST   | `/blogs`     | Active user | Create (`content` is ProseMirror/Tiptap JSON)      |
 | PUT    | `/blogs/:id` | Owner       | Update                                             |
@@ -245,9 +245,44 @@ All routes are prefixed with `/api`. Responses use a consistent envelope:
 
 ### Upload
 
-| Method | Path       | Access      | Notes                                              |
-| ------ | ---------- | ----------- | -------------------------------------------------- |
-| POST   | `/uploads` | Active user | multipart field `file` (jpg/png/webp, ≤5 MB). Returns `{ id, url }` |
+| Method | Path            | Access      | Notes                                              |
+| ------ | --------------- | ----------- | -------------------------------------------------- |
+| POST   | `/uploads`      | Active user | multipart field `file` (jpg/png/webp, ≤5 MB). Returns `{ id, path, url }` |
+| POST   | `/uploads/sign` | Active user | Body `{ paths: string[] }` (≤100) → `{ urls: { <path>: <signedUrl\|null> } }` |
+
+**The bucket is private.** Uploads use a **path + signed-URL** model so images
+never break when a URL expires:
+
+- `POST /uploads` returns `path` (the canonical storage key) and `url` (a
+  **short-lived signed URL for immediate preview only**).
+- **Persist the `path`** — in `blog.content` image `src`, `coverImageUrl`, and
+  `avatarUrl`. Never store the signed `url`.
+- Before displaying images, batch-resolve paths via `POST /uploads/sign` and use
+  the returned signed URLs in `<img src>`. They expire (default 1h,
+  `SIGNED_URL_TTL_SECONDS`) — re-resolve on page load.
+
+**Frontend image workflow (important):**
+
+1. Upload → get `{ path, url }`. Show `url` in the editor immediately; keep
+   `path` as the value you save.
+2. In the Tiptap document, image node `src` must hold the **path** (not a signed
+   URL). Resolve to signed URLs only for rendering — e.g. a custom image node
+   that stores `path` in attrs and swaps in a signed URL for display, or a render
+   pass that rewrites `src` via `/uploads/sign`.
+3. On save, the document/cover/avatar must contain **paths**. If a signed URL
+   leaks into saved content it will 400 once it expires.
+
+### Tags
+
+| Method | Path    | Access      | Notes                                                        |
+| ------ | ------- | ----------- | ------------------------------------------------------------ |
+| GET    | `/tags` | Active user | List tags with `blogCount`, popularity-ordered. `?search=` for autocomplete, `?limit=` (default 50). |
+
+Tags are **free-text**: you pass a `tags: string[]` when creating/updating a blog
+and any new name is created on the fly. Names are **normalized** (trimmed,
+lowercased, whitespace-collapsed) so `React`, `react`, and ` REACT ` all map to
+one tag. Use `GET /tags` to power a "choose existing or type new" input, and the
+`?tag=` filter on `GET /blogs` (also normalized).
 
 ### Notifications
 
@@ -290,12 +325,13 @@ All routes are prefixed with `/api`. Responses use a consistent envelope:
    (`parentId` must reference a root comment).
 4. **Likes can't duplicate** — enforced by a DB `UNIQUE(blog_id, user_id)`
    constraint, not just an application check.
-5. **Orphan-file cleanup** — files are stored in a **Supabase Storage bucket**;
-   the DB tracks each object's public `url` and bucket `path`. A cron job
-   deletes uploads with `is_referenced = false` older than
-   `ORPHAN_MAX_AGE_HOURS` from both the bucket and the DB. A blog references an
-   upload when its cover or inline-image URLs match; those uploads are flagged
-   on create/update.
+5. **Orphan-file cleanup** — files live in a **private Supabase Storage bucket**;
+   the DB tracks each object's `path`. A cron job deletes uploads with
+   `is_referenced = false` older than `ORPHAN_MAX_AGE_HOURS` from both the bucket
+   and the DB. A blog/avatar references an upload when its cover, avatar, or
+   inline-image **paths** match; those uploads are flagged on create/update.
+   Viewing is via short-lived **signed URLs** (`POST /uploads/sign`), never
+   public URLs.
 6. **Reset vs change password** — admin reset (`/admin/users/:id/reset-password`)
    never checks the old password; self change (`/profile/password`) always does.
    Separate endpoints, separate validation.

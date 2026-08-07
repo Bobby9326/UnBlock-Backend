@@ -22,7 +22,7 @@ const adminBlogSchema = z
     title: z.string(),
     status: z.enum(['draft', 'published']),
     author: authorSchema,
-    coverImageUrl: z.string().url().nullable(),
+    coverImageUrl: z.string().nullable(),
     likeCount: z.number().int(),
     commentCount: z.number().int(),
     createdAt: z.string().datetime(),

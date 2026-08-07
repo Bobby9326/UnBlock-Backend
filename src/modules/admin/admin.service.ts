@@ -66,9 +66,9 @@ export const adminService = {
 
     const user = await adminRepository.updateUser(id, patch);
 
-    // Keep an admin-set avatar from being reaped by the orphan-cleanup job.
+    // Keep an admin-set avatar (storage path) from being reaped by cleanup.
     if (patch.avatarUrl) {
-      await uploadsRepository.markReferencedByUrls([patch.avatarUrl]);
+      await uploadsRepository.markReferencedByPaths([patch.avatarUrl]);
     }
 
     return user;

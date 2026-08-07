@@ -1,32 +1,32 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { collectImageUrls } from '../src/modules/blogs/blogs.service.js';
+import { collectImagePaths } from '../src/modules/blogs/blogs.service.js';
 import { parsePagination, buildMeta } from '../src/utils/pagination.js';
 
 // These tests exercise pure logic and require no database.
 
-test('collectImageUrls walks a ProseMirror doc and includes the cover', () => {
+test('collectImagePaths walks a ProseMirror doc and includes the cover', () => {
   const doc = {
     type: 'doc',
     content: [
       { type: 'paragraph', content: [{ type: 'text', text: 'hello' }] },
-      { type: 'image', attrs: { src: 'http://x/a.png' } },
+      { type: 'image', attrs: { src: 'user-1/a.png' } },
       {
         type: 'paragraph',
         content: [
           { type: 'text', text: 'more' },
-          { type: 'image', attrs: { src: 'http://x/b.png' } },
+          { type: 'image', attrs: { src: 'user-1/b.png' } },
         ],
       },
     ],
   };
-  const urls = collectImageUrls(doc, 'http://x/cover.png').sort();
-  assert.deepEqual(urls, ['http://x/a.png', 'http://x/b.png', 'http://x/cover.png']);
+  const paths = collectImagePaths(doc, 'user-1/cover.png').sort();
+  assert.deepEqual(paths, ['user-1/a.png', 'user-1/b.png', 'user-1/cover.png']);
 });
 
-test('collectImageUrls handles empty content and no cover', () => {
-  assert.deepEqual(collectImageUrls({ type: 'doc', content: [] }, null), []);
+test('collectImagePaths handles empty content and no cover', () => {
+  assert.deepEqual(collectImagePaths({ type: 'doc', content: [] }, null), []);
 });
 
 test('parsePagination applies defaults and clamps', () => {

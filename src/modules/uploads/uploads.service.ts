@@ -27,17 +27,38 @@ export const uploadsService = {
       throw new AppError(502, 'STORAGE_ERROR', `Failed to upload file: ${error.message}`);
     }
 
-    const { data } = bucket().getPublicUrl(objectPath);
-    const publicUrl = data.publicUrl;
-
     const record = await uploadsRepository.create({
-      url: publicUrl,
+      // The bucket is private; we persist the object PATH everywhere and hand
+      // out short-lived signed URLs on demand. The `url` column is vestigial —
+      // set it to the path to avoid a NOT NULL migration (drop it later).
+      url: objectPath,
       path: objectPath,
       uploaderId,
       isReferenced: false,
     });
 
-    return { id: record.id, url: record.url, createdAt: record.createdAt };
+    // A signed URL so the editor can preview the image immediately after upload.
+    const [signed] = await uploadsService.signPaths([objectPath]);
+
+    return { id: record.id, path: objectPath, url: signed?.url ?? null, createdAt: record.createdAt };
+  },
+
+  // Exchange storage paths for short-lived signed URLs (resolve-on-read).
+  // Returns one entry per input path; failed entries carry url=null.
+  async signPaths(paths: string[]): Promise<{ path: string; url: string | null }[]> {
+    if (!paths.length) return [];
+    const { data, error } = await bucket().createSignedUrls(
+      paths,
+      env.supabase.signedUrlTtlSeconds,
+    );
+    if (error || !data) {
+      throw new AppError(502, 'STORAGE_ERROR', `Failed to sign URLs: ${error?.message ?? 'unknown'}`);
+    }
+    // Supabase returns items in the same order, each with signedUrl or error.
+    return data.map((item, i) => ({
+      path: paths[i] as string,
+      url: item.signedUrl ?? null,
+    }));
   },
 
   // Delete orphan objects (unreferenced, older than the configured age) from

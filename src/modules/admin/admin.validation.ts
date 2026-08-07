@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { storagePathSchema } from '../../utils/storagePath.js';
 
 export const listUsersSchema = {
   query: z.object({
@@ -34,7 +35,7 @@ export const updateUserSchema = {
       email: z.string().trim().toLowerCase().email().optional(),
       role: z.enum(['super_admin', 'general_user']).optional(),
       status: z.enum(['pending', 'active', 'disabled']).optional(),
-      avatarUrl: z.string().trim().url().nullable().optional(),
+      avatarUrl: storagePathSchema.nullable().optional(),
     })
     .refine((v) => Object.keys(v).length > 0, {
       message: 'At least one field must be provided',

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { storagePathSchema } from '../../utils/storagePath.js';
 
 // ProseMirror/Tiptap document: a JSON object with a node "type" and optional
 // nested "content". We keep validation permissive (any well-formed object)
@@ -14,6 +15,9 @@ export const listBlogsSchema = {
     search: z.string().trim().optional(),
     tag: z.string().trim().optional(),
     status: z.enum(['draft', 'published']).optional(),
+    // "me" scopes the list to the current user's own blogs (draft + published).
+    // Only "me" is supported; browsing another user's drafts is never allowed.
+    author: z.literal('me').optional(),
     sort: z.enum(['newest', 'oldest', 'most_liked', 'title']).default('newest'),
     page: z.coerce.number().int().min(1).optional(),
     limit: z.coerce.number().int().min(1).max(100).optional(),
@@ -28,7 +32,7 @@ export const createBlogSchema = {
   body: z.object({
     title: z.string().trim().min(1, 'Title is required').max(200),
     content: proseMirrorDoc,
-    coverImageUrl: z.string().trim().url().nullable().optional(),
+    coverImageUrl: storagePathSchema.nullable().optional(),
     status: z.enum(['draft', 'published']).default('draft'),
     tags: z.array(z.string().trim().min(1)).max(20).optional(),
   }),
@@ -40,7 +44,7 @@ export const updateBlogSchema = {
     .object({
       title: z.string().trim().min(1).max(200).optional(),
       content: proseMirrorDoc.optional(),
-      coverImageUrl: z.string().trim().url().nullable().optional(),
+      coverImageUrl: storagePathSchema.nullable().optional(),
       status: z.enum(['draft', 'published']).optional(),
       tags: z.array(z.string().trim().min(1)).max(20).optional(),
     })

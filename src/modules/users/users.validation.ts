@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { storagePathSchema } from '../../utils/storagePath.js';
 
 export const updateProfileSchema = {
   body: z
@@ -9,7 +10,7 @@ export const updateProfileSchema = {
         .min(4, 'Username must be at least 4 characters')
         .max(20, 'Username must be at most 20 characters')
         .optional(),
-      avatarUrl: z.string().trim().url('avatarUrl must be a valid URL').nullable().optional(),
+      avatarUrl: storagePathSchema.nullable().optional(),
     })
     .refine((v) => v.username !== undefined || v.avatarUrl !== undefined, {
       message: 'At least one of username or avatarUrl must be provided',

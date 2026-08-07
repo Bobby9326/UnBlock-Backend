@@ -32,6 +32,8 @@ export const env = {
     url: required('SUPABASE_URL'),
     serviceRoleKey: required('SUPABASE_SERVICE_ROLE_KEY'),
     bucket: process.env.SUPABASE_BUCKET || 'uploads',
+    // Lifetime of signed URLs handed to the frontend for viewing private files.
+    signedUrlTtlSeconds: parseInt(process.env.SIGNED_URL_TTL_SECONDS || '3600', 10),
   },
   maxUploadBytes: parseInt(process.env.MAX_UPLOAD_BYTES || '5242880', 10),
   allowedMimeTypes: ['image/jpeg', 'image/png', 'image/webp'] as const,

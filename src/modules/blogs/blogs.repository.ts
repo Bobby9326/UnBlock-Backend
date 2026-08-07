@@ -1,5 +1,6 @@
 import { Prisma } from '@prisma/client';
 import { prisma } from '../../config/database.js';
+import { normalizeTags } from '../../utils/tag.js';
 
 const authorSelect = {
   select: { id: true, username: true, avatarUrl: true },
@@ -59,9 +60,11 @@ export const blogsRepository = {
     return prisma.blog.delete({ where: { id } });
   },
 
-  // Upsert tags by name and return their ids.
+  // Upsert tags by normalized name and return their records. Normalization
+  // (trim + lowercase + collapse whitespace) means "React" and "react" map to
+  // the same tag row.
   async upsertTags(names: string[]) {
-    const unique = [...new Set(names.map((n) => n.trim()).filter(Boolean))];
+    const unique = normalizeTags(names);
     const tags = await Promise.all(
       unique.map((name) =>
         prisma.tag.upsert({ where: { name }, create: { name }, update: {} }),

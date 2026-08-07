@@ -6,15 +6,12 @@ export const uploadsRepository = {
     return prisma.upload.create({ data });
   },
 
-  findByUrls(urls: string[]) {
-    return prisma.upload.findMany({ where: { url: { in: urls } } });
-  },
-
-  // Mark a set of URLs as referenced (called when a blog references them).
-  markReferencedByUrls(urls: string[]) {
-    if (!urls.length) return Promise.resolve({ count: 0 });
+  // Mark a set of objects (by storage path) as referenced — called when a blog
+  // or avatar starts using them, so the cleanup job won't reap them.
+  markReferencedByPaths(paths: string[]) {
+    if (!paths.length) return Promise.resolve({ count: 0 });
     return prisma.upload.updateMany({
-      where: { url: { in: urls } },
+      where: { path: { in: paths } },
       data: { isReferenced: true },
     });
   },

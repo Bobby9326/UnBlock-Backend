@@ -1,5 +1,11 @@
 import { z } from './zod.js';
 
+// Image fields store a storage PATH (private bucket) — resolve via
+// POST /uploads/sign before display. Documented as such, not a URL.
+const storagePath = z
+  .string()
+  .openapi({ description: 'Storage path (resolve via POST /uploads/sign, not a URL)' });
+
 // Reusable response-body factories mirroring src/utils/response.ts envelopes.
 
 export function successSchema<T extends z.ZodTypeAny>(data: T) {
@@ -53,7 +59,7 @@ export const userSchema = z
     email: z.string().email(),
     role: z.enum(['super_admin', 'general_user']),
     status: z.enum(['pending', 'active', 'disabled']),
-    avatarUrl: z.string().url().nullable(),
+    avatarUrl: storagePath.nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
   })
@@ -63,7 +69,7 @@ export const authorSchema = z
   .object({
     id: z.string().uuid(),
     username: z.string(),
-    avatarUrl: z.string().url().nullable(),
+    avatarUrl: storagePath.nullable(),
   })
   .openapi('Author');
 
@@ -72,7 +78,7 @@ export const blogSchema = z
     id: z.string().uuid(),
     title: z.string(),
     content: z.record(z.any()).openapi({ description: 'ProseMirror/Tiptap JSON document' }),
-    coverImageUrl: z.string().url().nullable(),
+    coverImageUrl: storagePath.nullable(),
     status: z.enum(['draft', 'published']),
     author: authorSchema,
     tags: z.array(z.string()),

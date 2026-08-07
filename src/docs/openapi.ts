@@ -11,6 +11,7 @@ import { registerCommentPaths } from './paths/comments.docs.js';
 import { registerLikePaths } from './paths/likes.docs.js';
 import { registerNotificationPaths } from './paths/notifications.docs.js';
 import { registerUploadPaths } from './paths/uploads.docs.js';
+import { registerTagPaths } from './paths/tags.docs.js';
 import { registerAdminPaths } from './paths/admin.docs.js';
 
 export function buildOpenApiDocument() {
@@ -39,6 +40,7 @@ export function buildOpenApiDocument() {
   registerLikePaths(registry, bearerAuth);
   registerNotificationPaths(registry, bearerAuth);
   registerUploadPaths(registry, bearerAuth);
+  registerTagPaths(registry, bearerAuth);
   registerAdminPaths(registry, bearerAuth);
 
   const generator = new OpenApiGeneratorV3(registry.definitions);
@@ -62,6 +64,7 @@ export function buildOpenApiDocument() {
       { name: 'Likes', description: 'Toggle like/unlike' },
       { name: 'Notifications', description: 'Notification list & state' },
       { name: 'Uploads', description: 'Image upload to Supabase Storage' },
+      { name: 'Tags', description: 'Tag list for filtering & autocomplete' },
       { name: 'Admin', description: 'User & blog management (super admin)' },
     ],
   });

@@ -8,6 +8,7 @@ import commentsRoutes from '../modules/comments/comments.routes.js';
 import likesRoutes from '../modules/likes/likes.routes.js';
 import notificationsRoutes from '../modules/notifications/notifications.routes.js';
 import uploadsRoutes from '../modules/uploads/uploads.routes.js';
+import tagsRoutes from '../modules/tags/tags.routes.js';
 import adminRoutes from '../modules/admin/admin.routes.js';
 
 const router = Router();
@@ -19,6 +20,7 @@ router.use('/profile', usersRoutes);
 router.use('/blogs', blogsRoutes);
 router.use('/notifications', notificationsRoutes);
 router.use('/uploads', uploadsRoutes);
+router.use('/tags', tagsRoutes);
 router.use('/admin', adminRoutes);
 
 // Nested resources under a blog.
