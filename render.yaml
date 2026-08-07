@@ -1,0 +1,61 @@
+# Render Blueprint for the UnBlock backend.
+# Docs: https://render.com/docs/blueprint-spec
+#
+# Create the service from this file: Render Dashboard → New → Blueprint →
+# point at this repo. Secrets (marked `sync: false`) are entered in the
+# dashboard, never committed.
+
+services:
+  - type: web
+    name: unblock-backend
+    runtime: node
+    plan: free
+    region: singapore # pick the region closest to your Supabase project
+    # --include=dev forces devDependencies (typescript, @types) to install even
+    # when NODE_ENV=production, so `tsc` can build. postinstall runs
+    # `prisma generate` automatically.
+    buildCommand: npm install --include=dev && npm run build
+    # Runs once before each deploy goes live — applies pending DB migrations.
+    preDeployCommand: npm run prisma:deploy
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Render provides PORT automatically; the app already reads process.env.PORT.
+      - key: DATABASE_URL
+        sync: false
+      - key: DIRECT_URL
+        sync: false
+      - key: JWT_SECRET
+        generateValue: true # Render generates a strong random value
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: AUTH_COOKIE_NAME
+        value: unblock_token
+      - key: TOKEN_MAX_AGE_MS
+        value: "604800000"
+      # Your Vercel frontend origin(s), comma-separated, NO trailing slash.
+      # e.g. https://unblock.vercel.app,https://unblock-git-main-you.vercel.app
+      - key: CORS_ORIGINS
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: uploads
+      - key: MAX_UPLOAD_BYTES
+        value: "5242880"
+      - key: CLEANUP_CRON
+        value: 0 * * * *
+      - key: ORPHAN_MAX_AGE_HOURS
+        value: "24"
+      # Only used by `npm run seed` (run manually once from the Render shell).
+      - key: SEED_ADMIN_USERNAME
+        value: superadmin
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false

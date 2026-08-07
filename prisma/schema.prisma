@@ -1,0 +1,172 @@
+// UnBlock — Blog Management System
+// Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  // Pooled connection (pgbouncer) for the running app.
+  url       = env("DATABASE_URL")
+  // Direct connection used by `prisma migrate` / introspection.
+  directUrl = env("DIRECT_URL")
+}
+
+// ─── Enums ────────────────────────────────────────────────
+
+enum Role {
+  super_admin
+  general_user
+}
+
+enum UserStatus {
+  pending
+  active
+  disabled
+}
+
+enum BlogStatus {
+  draft
+  published
+}
+
+enum NotificationType {
+  comment
+  reply
+  like
+  system
+}
+
+// ─── Models ───────────────────────────────────────────────
+
+model User {
+  id            String     @id @default(uuid())
+  username      String     @db.VarChar(20)
+  email         String     @unique
+  passwordHash  String     @map("password_hash")
+  role          Role       @default(general_user)
+  status        UserStatus @default(pending)
+  avatarUrl     String?    @map("avatar_url")
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  blogs         Blog[]
+  comments      Comment[]
+  likes         Like[]
+  notifications Notification[] @relation("recipient")
+  uploads       Upload[]
+
+  @@map("users")
+}
+
+model Blog {
+  id            String     @id @default(uuid())
+  title         String
+  // ProseMirror / Tiptap JSON document. Stored as JSONB so that
+  // inline images interleaved with text keep their authored order.
+  content       Json
+  coverImageUrl String?    @map("cover_image_url")
+  authorId      String     @map("author_id")
+  status        BlogStatus @default(draft)
+  createdAt     DateTime   @default(now()) @map("created_at")
+  updatedAt     DateTime   @updatedAt @map("updated_at")
+
+  author   User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments Comment[]
+  likes    Like[]
+  tags     BlogTag[]
+
+  @@index([authorId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("blogs")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  blogId    String   @map("blog_id")
+  userId    String   @map("user_id")
+  // Self-relation for replies. Enforced to be at most one level deep
+  // in the service layer (a reply's parent must itself be a root comment).
+  parentId  String?  @map("parent_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blog    Blog      @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([blogId])
+  @@index([parentId])
+  @@map("comments")
+}
+
+model Like {
+  id        String   @id @default(uuid())
+  blogId    String   @map("blog_id")
+  userId    String   @map("user_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // DB-level guard against duplicate likes.
+  @@unique([blogId, userId])
+  @@index([blogId])
+  @@map("likes")
+}
+
+model Notification {
+  id          String           @id @default(uuid())
+  recipientId String           @map("recipient_id")
+  type        NotificationType
+  referenceId String?          @map("reference_id")
+  message     String
+  isRead      Boolean          @default(false) @map("is_read")
+  isCleared   Boolean          @default(false) @map("is_cleared")
+  createdAt   DateTime         @default(now()) @map("created_at")
+
+  recipient User @relation("recipient", fields: [recipientId], references: [id], onDelete: Cascade)
+
+  @@index([recipientId])
+  @@map("notifications")
+}
+
+model Upload {
+  id           String   @id @default(uuid())
+  // Public URL returned to clients.
+  url          String
+  // Object key inside the Supabase Storage bucket (used to delete the object).
+  path         String
+  uploaderId   String   @map("uploader_id")
+  // Track orphan files: false until the URL is referenced by a blog/comment.
+  isReferenced Boolean  @default(false) @map("is_referenced")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  uploader User @relation(fields: [uploaderId], references: [id], onDelete: Cascade)
+
+  @@index([uploaderId])
+  @@index([isReferenced])
+  @@map("uploads")
+}
+
+model Tag {
+  id    String    @id @default(uuid())
+  name  String    @unique
+  blogs BlogTag[]
+
+  @@map("tags")
+}
+
+model BlogTag {
+  blogId String @map("blog_id")
+  tagId  String @map("tag_id")
+
+  blog Blog @relation(fields: [blogId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([blogId, tagId])
+  @@map("blog_tags")
+}
