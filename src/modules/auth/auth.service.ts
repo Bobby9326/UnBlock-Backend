@@ -1,4 +1,5 @@
 import { authRepository } from './auth.repository.js';
+import { notificationsService } from '../notifications/notifications.service.js';
 import { hashPassword, comparePassword } from '../../utils/hash.js';
 import { signToken } from '../../utils/jwt.js';
 import { AppError } from '../../utils/AppError.js';
@@ -18,6 +19,19 @@ export const authService = {
       role: 'general_user',
       status: 'pending',
     });
+
+    // Alert super admins that an account is awaiting approval. A failure here
+    // must never fail the registration itself — log and continue.
+    try {
+      await notificationsService.notifyAdmins({
+        type: 'user_registered',
+        referenceId: user.id,
+        message: `${user.username} registered and is awaiting approval`,
+      });
+    } catch (err) {
+      console.error('[auth] failed to notify admins of registration:', (err as Error).message);
+    }
+
     return user;
   },
 

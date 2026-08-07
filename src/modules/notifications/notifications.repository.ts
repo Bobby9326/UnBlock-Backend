@@ -28,4 +28,27 @@ export const notificationsRepository = {
   create(data: Prisma.NotificationUncheckedCreateInput) {
     return prisma.notification.create({ data });
   },
+
+  createMany(data: Prisma.NotificationUncheckedCreateInput[]) {
+    if (!data.length) return Promise.resolve({ count: 0 });
+    return prisma.notification.createMany({ data });
+  },
+
+  // Batch-fetch blogs referenced by a notification list (avoids N+1).
+  findBlogsByIds(ids: string[]) {
+    if (!ids.length) return Promise.resolve([]);
+    return prisma.blog.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, title: true, coverImageUrl: true },
+    });
+  },
+
+  // Ids of all super admins — recipients for registration alerts.
+  async findSuperAdminIds(): Promise<string[]> {
+    const admins = await prisma.user.findMany({
+      where: { role: 'super_admin' },
+      select: { id: true },
+    });
+    return admins.map((a) => a.id);
+  },
 };

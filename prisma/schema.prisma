@@ -36,6 +36,7 @@ enum NotificationType {
   reply
   like
   system
+  user_registered
 }
 
 // ─── Models ───────────────────────────────────────────────

@@ -296,6 +296,17 @@ one tag. Use `GET /tags` to power a "choose existing or type new" input, and the
 > items were new, then immediately calls `PATCH /read-all`. They are separate
 > calls by design — never combined.
 
+Each notification includes a **`blog`** object (`{ id, title, coverImageUrl }`)
+or **`null`**. It's null for `system` / `user_registered` types, or when the
+referenced blog was deleted — a single missing blog never breaks the list.
+`coverImageUrl` is a **storage path**; sign it via `POST /uploads/sign` before
+display. `referenceId` holds the `blogId` for comment/reply/like, and the new
+user's id for `user_registered`.
+
+**Registration alerts:** when a user registers (status `pending`), every super
+admin gets a `user_registered` notification so they know to approve the account.
+Notification type enum: `comment | reply | like | system | user_registered`.
+
 ### Admin — user management (super admin only)
 
 | Method | Path                             | Notes                                    |

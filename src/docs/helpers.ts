@@ -113,15 +113,29 @@ export const commentSchema = z
   })
   .openapi('Comment');
 
+const notificationBlogSchema = z
+  .object({
+    id: z.string().uuid(),
+    title: z.string(),
+    coverImageUrl: storagePath.nullable(),
+  })
+  .openapi('NotificationBlog');
+
 export const notificationSchema = z
   .object({
     id: z.string().uuid(),
     recipientId: z.string().uuid(),
-    type: z.enum(['comment', 'reply', 'like', 'system']),
-    referenceId: z.string().nullable(),
+    type: z.enum(['comment', 'reply', 'like', 'system', 'user_registered']),
+    referenceId: z
+      .string()
+      .nullable()
+      .openapi({ description: 'blogId for comment/reply/like; new userId for user_registered' }),
     message: z.string(),
     isRead: z.boolean(),
     isCleared: z.boolean(),
     createdAt: z.string().datetime(),
+    blog: notificationBlogSchema
+      .nullable()
+      .openapi({ description: 'Related blog, or null (system/user_registered or deleted blog)' }),
   })
   .openapi('Notification');
