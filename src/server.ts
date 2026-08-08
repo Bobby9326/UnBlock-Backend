@@ -1,5 +1,5 @@
 import { createApp } from './app.js';
-import { env } from './config/env.js';
+import { env, isProduction } from './config/env.js';
 import { connectDatabase, disconnectDatabase } from './config/database.js';
 import { startCleanupJob } from './jobs/cleanup-orphan-files.job.js';
 
@@ -7,13 +7,16 @@ async function main(): Promise<void> {
   await connectDatabase();
 
   const app = createApp();
-  const server = app.listen(env.port, () => {
-    const base = `http://localhost:${env.port}`;
-    console.log(`🚀 UnBlock API listening on ${base}/api`);
-    console.log(`   Environment: ${env.nodeEnv}`);
-    console.log(`   API docs:    ${base}/api/docs`);
-    console.log(`   OpenAPI JSON: ${base}/api/docs.json`);
-    console.log(`   Health:      ${base}/api/health`);
+  // Bind 0.0.0.0 so the app is reachable inside container hosts (Render, Docker),
+  // not just the loopback interface.
+  const server = app.listen(env.port, '0.0.0.0', () => {
+    console.log(`🚀 UnBlock API listening on port ${env.port} (${env.nodeEnv})`);
+    if (!isProduction) {
+      const base = `http://localhost:${env.port}`;
+      console.log(`   API docs:     ${base}/api/docs`);
+      console.log(`   OpenAPI JSON: ${base}/api/docs.json`);
+      console.log(`   Health:       ${base}/api/health`);
+    }
   });
 
   const stopCleanup = startCleanupJob();
