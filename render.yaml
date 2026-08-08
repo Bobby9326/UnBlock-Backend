@@ -1,9 +1,4 @@
-# Render Blueprint for the UnBlock backend.
-# Docs: https://render.com/docs/blueprint-spec
-#
-# Create the service from this file: Render Dashboard → New → Blueprint →
-# point at this repo. Secrets (marked `sync: false`) are entered in the
-# dashboard, never committed.
+
 
 services:
   - type: web
@@ -15,8 +10,9 @@ services:
     # when NODE_ENV=production, so `tsc` can build. postinstall runs
     # `prisma generate` automatically.
     buildCommand: npm install --include=dev && npm run build
-    # Runs once before each deploy goes live — applies pending DB migrations.
-    preDeployCommand: npm run prisma:deploy
+    # Runs before each deploy goes live: apply pending DB migrations, then seed
+    # the super admin. Both are idempotent — safe to run on every deploy.
+    preDeployCommand: npm run prisma:deploy && npm run seed
     startCommand: npm start
     healthCheckPath: /api/health
     autoDeploy: true
@@ -48,6 +44,8 @@ services:
         value: uploads
       - key: MAX_UPLOAD_BYTES
         value: "5242880"
+      - key: SIGNED_URL_TTL_SECONDS
+        value: "3600"
       - key: CLEANUP_CRON
         value: 0 * * * *
       - key: ORPHAN_MAX_AGE_HOURS
