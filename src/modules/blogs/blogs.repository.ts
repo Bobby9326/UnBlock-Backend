@@ -23,7 +23,7 @@ export const blogsRepository = {
     take,
   }: {
     where: Prisma.BlogWhereInput;
-    orderBy: Prisma.BlogOrderByWithRelationInput;
+    orderBy: Prisma.BlogOrderByWithRelationInput | Prisma.BlogOrderByWithRelationInput[];
     skip: number;
     take: number;
   }): Promise<{ rows: BlogWithRelations[]; total: number }> {

@@ -12,11 +12,20 @@ const USER_SORT: Record<string, Prisma.UserOrderByWithRelationInput> = {
   username: { username: 'asc' },
 };
 
-const BLOG_SORT: Record<string, Prisma.BlogOrderByWithRelationInput> = {
+const BLOG_SORT: Record<
+  string,
+  Prisma.BlogOrderByWithRelationInput | Prisma.BlogOrderByWithRelationInput[]
+> = {
   newest: { createdAt: 'desc' },
   oldest: { createdAt: 'asc' },
   title: { title: 'asc' },
-  most_liked: { likes: { _count: 'desc' } },
+  // Tiebreaker: most likes → most comments → newest. Prevents unstable
+  // ordering when multiple blogs share the same like count.
+  most_liked: [
+    { likes: { _count: 'desc' } },
+    { comments: { _count: 'desc' } },
+    { createdAt: 'desc' },
+  ],
 };
 
 export const adminService = {

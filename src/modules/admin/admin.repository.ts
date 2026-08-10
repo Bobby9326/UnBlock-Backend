@@ -57,7 +57,7 @@ export const adminRepository = {
     take,
   }: {
     where: Prisma.BlogWhereInput;
-    orderBy: Prisma.BlogOrderByWithRelationInput;
+    orderBy: Prisma.BlogOrderByWithRelationInput | Prisma.BlogOrderByWithRelationInput[];
     skip: number;
     take: number;
   }): Promise<{ rows: AdminBlogRow[]; total: number }> {
